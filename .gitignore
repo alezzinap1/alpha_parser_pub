@@ -1,0 +1,75 @@
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtualenv
+.venv/
+venv/
+env/
+
+# Local configuration
+.env
+
+# Telethon sessions
+*.session
+
+# Databases
+*.db
+
+# Logs
+*.log
+
+# Docker artifacts
+*.pid
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Project specific
+*.db
+*.session
+*.log
+userbot*.session
+channels*.db
+userbot*.log
+
+# Config (может содержать секреты)
+# Раскомментируйте если не хотите коммитить CONFIG.py
+# src/CONFIG.py
+
+# OS
+.DS_Store
+Thumbs.db
+
