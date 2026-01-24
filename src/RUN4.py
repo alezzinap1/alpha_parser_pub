@@ -120,12 +120,21 @@ async def safe_forward_message(
     Возвращает True если успешно, False если ошибка.
     """
     try:
+        await ensure_connected()  # Проверка перед отправкой
         await asyncio.sleep(random.uniform(SLEEP_BETWEEN_MESSAGES_MIN, SLEEP_BETWEEN_MESSAGES_MAX))
         await client.forward_messages(CONFIG['target_channel'], message_id, from_peer=peer)
         log_msg = log_prefix if log_prefix else f"https://t.me/{ch_link}/{message_id} (Type {channel_type}): FW → {CONFIG['target_channel']}: {message_id}"
         logging.info(log_msg)
         counters['forwarded'] += 1
         return True
+    except ConnectionError as e:
+        logging.warning(f"Connection lost during forward: {e}, reconnecting...")
+        try:
+            await ensure_connected()
+        except Exception as reconnect_error:
+            logging.error(f"Reconnection failed: {reconnect_error}")
+        counters['skipped'] += 1
+        return False
     except FloodWaitError as e:
         logging.warning(f"https://t.me/{ch_link}/{message_id}: FloodWait {e.seconds}s")
         delay_min = SLEEP_AFTER_FLOOD_SHORT_MIN if use_short_delay else SLEEP_AFTER_FLOOD_MIN
@@ -333,6 +342,9 @@ async def process_channel(
     counters = {'fetched': 0, 'forwarded': 0, 'skipped': 0, 'ads': 0}
     
     try:
+        # Проверяем соединение перед обработкой
+        await ensure_connected()
+        
         peer = InputPeerChannel(chat_id, access_hash)
         lim = max(1, int(CONFIG['max_messages_per_channel']) 
                  if str(CONFIG['max_messages_per_channel']).isdigit() else 100)
@@ -378,6 +390,14 @@ async def process_channel(
         
         return counters
         
+    except ConnectionError as e:
+        logging.warning(f"@{channel}: Connection lost, attempting reconnect...")
+        try:
+            await ensure_connected()
+            return counters
+        except Exception as reconnect_error:
+            logging.error(f"@{channel}: Reconnection failed: {reconnect_error}")
+            return counters
     except Exception as e:
         logging.error(f"@{channel} (Type {channel_type}): Ошибка: {e}\n{traceback.format_exc()}")
         return counters
@@ -658,6 +678,23 @@ async def _start_client():
         password=password
     )
 
+async def ensure_connected():
+    """Проверяет соединение и переподключается при необходимости"""
+    if not client.is_connected():
+        logging.warning("Client disconnected, reconnecting...")
+        try:
+            await client.connect()
+            if not await client.is_user_authorized():
+                logging.warning("Session expired, re-authenticating...")
+                await _start_client()
+            else:
+                logging.info("Reconnected successfully")
+        except Exception as e:
+            logging.error(f"Reconnection failed: {e}")
+            await asyncio.sleep(5)
+            raise
+    return True
+
 async def main():
     # Проверка критических параметров перед запуском
     if not CONFIG.get('target_channel'):
@@ -697,11 +734,22 @@ async def main():
     last_check = {t: 0 for t in (0, 1, 2, 3, 4, 5, 6)}
     last_config_check = 0
     last_table_check = 0
+    last_connection_check = 0
     base_sleep = min(intervals.values())
+    CONNECTION_CHECK_INTERVAL = 300  # Проверка соединения каждые 5 минут
 
     while True:
         try:
             now = time.time()
+            
+            # Периодическая проверка соединения
+            if now - last_connection_check >= CONNECTION_CHECK_INTERVAL:
+                try:
+                    await ensure_connected()
+                except Exception as e:
+                    logging.error(f"Connection check failed: {e}")
+                last_connection_check = now
+            
             csv_rows = load_csv()
             if now - last_config_check >= CONFIG_CHECK_INTERVAL:
                 await update_configs(csv_rows)
@@ -716,8 +764,17 @@ async def main():
                 if now - last_check[t] >= interval:
                     await fetch_unread_messages(channels, t)
                     last_check[t] = now
+        except ConnectionError as e:
+            logging.error(f"Main loop: Connection lost: {e}, reconnecting...")
+            try:
+                await ensure_connected()
+                await asyncio.sleep(5)  # Небольшая пауза после переподключения
+            except Exception as reconnect_error:
+                logging.error(f"Main loop: Reconnection failed: {reconnect_error}")
+                await asyncio.sleep(30)  # Долгая пауза при неудаче
         except Exception as e:
             logging.error(f"Main loop error: {e}\n{traceback.format_exc()}")
+            await asyncio.sleep(10)  # Пауза при любой другой ошибке
         await asyncio.sleep(base_sleep)
 
 if __name__ == "__main__":
