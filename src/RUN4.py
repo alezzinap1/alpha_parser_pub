@@ -14,6 +14,7 @@ import re
 import time
 import traceback
 from telethon.errors import PhoneMigrateError, FloodWaitError, SessionPasswordNeededError
+from telethon.errors.rpcerrorlist import AuthKeyDuplicatedError
 import ast
 from typing import Dict, List, Tuple, Optional, Any, Set, Union
 from contextlib import contextmanager
@@ -25,10 +26,21 @@ warnings.filterwarnings("ignore", category=UserWarning, module="urllib3")
 # Определяем базовый путь для данных (Docker или локально) - ДО импорта CONFIG
 import os
 DATA_DIR = '/data' if os.path.exists('/data') else '.'
-SESSION_NAME = 'userbot2_session'
-DB_FILE = os.path.join(DATA_DIR, "channels_v2.db") if DATA_DIR != '.' else "channels_v2.db"
-SESSION_PATH = os.path.join(DATA_DIR, SESSION_NAME) if DATA_DIR != '.' else SESSION_NAME
-LOG_FILE = os.path.join(DATA_DIR, "userbot2.log") if DATA_DIR != '.' else "userbot2.log"
+# Загружаем .env для определения режима (до импорта CONFIG)
+from dotenv import load_dotenv  # type: ignore
+load_dotenv()
+ENV_MODE = os.getenv('ENV_MODE', 'production').lower()
+# Используем разные сессии для теста и продакшна, чтобы избежать конфликтов
+SESSION_NAME = os.getenv('SESSION_NAME', 
+    'userbot2_test_session' if ENV_MODE == 'test' else 'userbot2_session')
+DB_FILE = os.getenv('DB_FILE', 
+    os.path.join(DATA_DIR, "channels_v2_test.db" if ENV_MODE == 'test' else "channels_v2.db") 
+    if DATA_DIR != '.' else ("channels_v2_test.db" if ENV_MODE == 'test' else "channels_v2.db"))
+SESSION_PATH = os.getenv('SESSION_PATH', 
+    os.path.join(DATA_DIR, SESSION_NAME) if DATA_DIR != '.' else SESSION_NAME)
+LOG_FILE = os.getenv('LOG_FILE', 
+    os.path.join(DATA_DIR, "userbot2_test.log" if ENV_MODE == 'test' else "userbot2.log") 
+    if DATA_DIR != '.' else ("userbot2_test.log" if ENV_MODE == 'test' else "userbot2.log"))
 
 # === CONFIG ===
 from .CONFIG import (
@@ -506,6 +518,15 @@ async def process_channel(
         
         return counters
         
+    except AuthKeyDuplicatedError as e:
+        logging.error(
+            f"@{channel}: AuthKeyDuplicatedError - сессия используется с двух IP одновременно!\n"
+            f"Останови бота на сервере или используй другой аккаунт для локального тестирования.\n"
+            f"Текущая сессия: {SESSION_PATH}\n"
+            f"Проверь, что локально используется тестовый аккаунт (ENV_MODE=test)"
+        )
+        # Пропускаем этот канал, но не падаем полностью
+        return counters
     except ConnectionError as e:
         logging.warning(f"@{channel}: Connection lost, attempting reconnect...")
         try:
@@ -805,6 +826,13 @@ async def ensure_connected():
                 await _start_client()
             else:
                 logging.info("Reconnected successfully")
+        except AuthKeyDuplicatedError as e:
+            logging.error(
+                f"❌ Reconnection failed: AuthKeyDuplicatedError!\n"
+                f"Сессия используется с двух IP одновременно.\n"
+                f"Останови бота на сервере или используй другой аккаунт для локального тестирования."
+            )
+            raise
         except Exception as e:
             logging.error(f"Reconnection failed: {e}")
             await asyncio.sleep(5)
@@ -819,6 +847,21 @@ async def main():
     logging.info(f"Data directory: {DATA_DIR}")
     logging.info(f"Session path: {SESSION_PATH}")
     logging.info(f"Database file: {DB_FILE}")
+    
+    # Проверка соответствия режима и сессии
+    env_mode = os.getenv('ENV_MODE', 'production').lower()
+    if env_mode == 'test':
+        if 'test' not in SESSION_NAME:
+            logging.warning(
+                f"⚠ WARNING: ENV_MODE=test, but session name is '{SESSION_NAME}' (should contain 'test').\n"
+                f"Убедись, что используешь тестовый аккаунт для локального тестирования!"
+            )
+    else:
+        if 'test' in SESSION_NAME:
+            logging.warning(
+                f"⚠ WARNING: ENV_MODE=production, but session name is '{SESSION_NAME}' (contains 'test').\n"
+                f"Убедись, что используешь правильный режим!"
+            )
     
     setup_database()
     try:
@@ -841,6 +884,20 @@ async def main():
     except SessionPasswordNeededError:
         logging.info("2FA required, entering…")
         await _start_client()
+    except AuthKeyDuplicatedError as e:
+        logging.error(
+            f"❌ КРИТИЧЕСКАЯ ОШИБКА: AuthKeyDuplicatedError!\n"
+            f"Сессия используется одновременно с двух разных IP адресов.\n"
+            f"Текущая сессия: {SESSION_PATH}\n"
+            f"ENV_MODE: {os.getenv('ENV_MODE', 'production')}\n"
+            f"Номер телефона: {phone_number}\n\n"
+            f"РЕШЕНИЕ:\n"
+            f"1. Если тестируешь локально - убедись, что на сервере бот ОСТАНОВЛЕН\n"
+            f"2. Или используй РАЗНЫЕ аккаунты для сервера и локально\n"
+            f"3. Для локального теста используй тестовый аккаунт (ENV_MODE=test)\n"
+            f"4. Удали старую сессию и создай новую: Remove-Item {SESSION_PATH}.session"
+        )
+        return
     except Exception as e:
         logging.error(f"Auth error: {e}\n{traceback.format_exc()}")
         return
@@ -880,6 +937,13 @@ async def main():
                 if now - last_check[t] >= interval:
                     await fetch_unread_messages(channels, t)
                     last_check[t] = now
+        except AuthKeyDuplicatedError as e:
+            logging.error(
+                f"❌ Main loop: AuthKeyDuplicatedError - сессия используется с двух IP!\n"
+                f"Останови бота на сервере или используй другой аккаунт.\n"
+                f"Сессия: {SESSION_PATH}, ENV_MODE: {os.getenv('ENV_MODE', 'production')}"
+            )
+            await asyncio.sleep(60)  # Долгая пауза перед следующей попыткой
         except ConnectionError as e:
             logging.error(f"Main loop: Connection lost: {e}, reconnecting...")
             try:
