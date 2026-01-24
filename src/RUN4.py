@@ -17,6 +17,7 @@ from telethon.errors import PhoneMigrateError, FloodWaitError, SessionPasswordNe
 import ast
 from typing import Dict, List, Tuple, Optional, Any, Set, Union
 from contextlib import contextmanager
+from datetime import datetime
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning, module="urllib3")
 
@@ -205,6 +206,32 @@ def setup_database() -> None:
             channel_username TEXT
         )
     """)
+    # Таблица для хранения всех обработанных постов
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS posts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            channel TEXT NOT NULL,
+            channel_type INTEGER NOT NULL,
+            message_id INTEGER NOT NULL,
+            post_url TEXT NOT NULL,
+            text TEXT,
+            text_length INTEGER DEFAULT 0,
+            published_at TIMESTAMP,
+            processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            is_advertisement BOOLEAN DEFAULT 0,
+            is_forwarded BOOLEAN DEFAULT 0,
+            has_media BOOLEAN DEFAULT 0,
+            blacklisted BOOLEAN DEFAULT 0,
+            UNIQUE(channel, message_id)
+        )
+    """)
+    # Оптимизированные индексы для быстрого поиска
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_posts_channel ON posts(channel)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_posts_published_at ON posts(published_at)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_posts_is_advertisement ON posts(is_advertisement)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_posts_is_forwarded ON posts(is_forwarded)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_posts_channel_type ON posts(channel_type)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_posts_channel_message_id ON posts(channel, message_id)")
     cur.execute("PRAGMA table_info(channels)")
     columns = [col[1] for col in cur.fetchall()]
     if 'access_hash' not in columns:
@@ -214,6 +241,7 @@ def setup_database() -> None:
     cur.execute("CREATE INDEX IF NOT EXISTS idx_advertisements_message_id ON advertisements (message_id)")
     conn.commit()
     conn.close()
+    logging.info("Database initialized with posts table")
 
 def get_tracked_channels() -> List[Tuple[str, int, int, int, Optional[int]]]:
     """Получает список отслеживаемых каналов из БД"""
@@ -264,6 +292,83 @@ def add_advertisement_post(message_id: int, channel_username: str) -> None:
         cur.execute(
             "INSERT OR IGNORE INTO advertisements (message_id, channel_username) VALUES (?, ?)",
             (message_id, channel_username)
+        )
+
+def save_posts_batch(posts: List[Dict[str, Any]]) -> None:
+    """
+    Оптимизированное батч-сохранение постов в БД.
+    
+    Args:
+        posts: Список словарей с данными постов. Каждый словарь должен содержать:
+            - channel: str
+            - channel_type: int
+            - message_id: int
+            - post_url: str
+            - text: Optional[str]
+            - published_at: Optional[datetime]
+            - is_advertisement: bool
+            - is_forwarded: bool
+            - has_media: bool
+            - blacklisted: bool
+    """
+    if not posts:
+        return
+    
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        # Подготавливаем данные для батч-вставки
+        batch_data = []
+        for post in posts:
+            published_at = post.get('published_at')
+            # Конвертируем datetime в строку ISO format для SQLite
+            if published_at:
+                if isinstance(published_at, datetime):
+                    published_at_str = published_at.isoformat()
+                elif isinstance(published_at, str):
+                    published_at_str = published_at
+                else:
+                    published_at_str = None
+            else:
+                published_at_str = None
+            
+            batch_data.append((
+                post['channel'],
+                post['channel_type'],
+                post['message_id'],
+                post['post_url'],
+                post.get('text'),
+                post.get('text_length', 0),
+                published_at_str,
+                int(post.get('is_advertisement', False)),
+                int(post.get('is_forwarded', False)),
+                int(post.get('has_media', False)),
+                int(post.get('blacklisted', False))
+            ))
+        
+        # Используем executemany для батч-вставки
+        cur.executemany("""
+            INSERT OR REPLACE INTO posts 
+            (channel, channel_type, message_id, post_url, text, text_length, 
+             published_at, is_advertisement, is_forwarded, has_media, blacklisted)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, batch_data)
+        if len(posts) > 0:
+            logging.info(f"Saved batch of {len(posts)} posts to database")
+
+def update_post_forwarded(channel: str, message_id: int, is_forwarded: bool = True) -> None:
+    """
+    Обновляет статус пересылки поста.
+    
+    Args:
+        channel: Название канала
+        message_id: ID сообщения
+        is_forwarded: Был ли пост переслан
+    """
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "UPDATE posts SET is_forwarded = ? WHERE channel = ? AND message_id = ?",
+            (int(is_forwarded), channel, message_id)
         )
 
 async def is_blacklisted(text: str) -> bool:
@@ -364,6 +469,9 @@ async def process_channel(
             logging.warning(f"Неизвестный тип канала: {channel_type}, пропускаем")
             return counters
         
+        # Список для батч-сохранения постов
+        posts_batch = []
+        
         # Обрабатываем каждое сообщение
         for message in messages:
             if message.id <= last_message_id:
@@ -381,8 +489,16 @@ async def process_channel(
                 message, peer, ch_link, channel_type, counters,
                 safe_forward_message, is_blacklisted, is_advertisement,
                 is_advertisement_post, add_advertisement_post,
-                config=CONFIG, channel=channel
+                config=CONFIG, channel=channel,
+                posts_batch=posts_batch  # Передаем список для сбора постов
             )
+        
+        # Сохраняем все посты батчем в БД
+        if posts_batch:
+            try:
+                save_posts_batch(posts_batch)
+            except Exception as e:
+                logging.error(f"Error saving posts batch for {channel}: {e}\n{traceback.format_exc()}")
         
         # Обновляем last_message_id
         if max_id > last_message_id:
