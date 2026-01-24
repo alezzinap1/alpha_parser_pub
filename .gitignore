@@ -10,6 +10,11 @@ env/
 
 # Local configuration
 .env
+.env.*
+
+# Documentation with secrets - НИКОГДА не коммитить!
+ACCOUNT_SWITCHING_GUIDE.md
+CREATE_ENV_FILES.md
 
 # Telethon sessions
 *.session
