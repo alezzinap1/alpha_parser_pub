@@ -79,13 +79,12 @@ if not deepseek_api_key:
     raise ValueError("deepseek_api_key must be set in CONFIG.py")
 
 # === TELETHON ===
-# Передаем phone при создании клиента, чтобы избежать интерактивного запроса в Docker
+# phone передается в start(), а не в конструктор
 client = TelegramClient(
     SESSION_PATH,
     api_id,
     api_hash,
-    connection_retries=5,
-    phone=phone_number  # Добавляем phone, чтобы избежать input() в Docker
+    connection_retries=5
 )
 
 # === CONSTANTS ===
@@ -965,5 +964,9 @@ async def main():
         await asyncio.sleep(base_sleep)
 
 if __name__ == "__main__":
-    with client:
+    # Используем start() с phone, чтобы избежать интерактивного input() в Docker
+    client.start(phone=phone_number)
+    try:
         client.loop.run_until_complete(main())
+    finally:
+        client.disconnect()
