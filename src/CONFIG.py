@@ -30,8 +30,9 @@ api_hash = _require_env("TELEGRAM_API_HASH")  # тоже с сайта
 phone_number = _require_env("TELEGRAM_PHONE_NUMBER")  # телефон зареганного тг акка
 
 # Может быть пустым, если у аккаунта нет 2FA
+# Пароль должен быть строкой (не преобразуем в int)
 password_raw = os.getenv("TELEGRAM_PASSWORD")
-password = int(password_raw) if password_raw and password_raw.isdigit() else password_raw
+password = password_raw if password_raw else None
 
 # Ключ для DeepSeek/OpenAI-совместимого клиента
 deepseek_api_key = _require_env("DEEPSEEK_API_KEY")

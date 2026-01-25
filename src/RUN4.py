@@ -997,11 +997,11 @@ if __name__ == "__main__":
         pwd = os.getenv("TELEGRAM_PASSWORD")
         if pwd:
             logging.info("Using TELEGRAM_PASSWORD from environment variable")
-            return pwd
+            return str(pwd)  # Гарантируем, что это строка
         
         # Если password уже задан в CONFIG (из .env), используем его
         if password:
-            return password
+            return str(password)  # Преобразуем в строку на всякий случай
         
         # Если переменной нет, пытаемся интерактивный ввод
         try:
