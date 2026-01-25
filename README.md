@@ -130,8 +130,8 @@ grep ENV_MODE .env
 
 ```bash
 # 1. Создайте директорию и файл .env
-mkdir -p /opt/alpha-parser/data
-nano /opt/alpha-parser/data/.env  # Заполните все переменные
+mkdir -p /opt/alpha-parser/app/data
+nano /opt/alpha-parser/app/data/.env  # Заполните все переменные
 
 # 2. Запустите через Docker Compose
 cd /opt/alpha-parser
