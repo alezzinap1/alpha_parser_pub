@@ -79,7 +79,14 @@ if not deepseek_api_key:
     raise ValueError("deepseek_api_key must be set in CONFIG.py")
 
 # === TELETHON ===
-client = TelegramClient(SESSION_PATH, api_id, api_hash, connection_retries=5)
+# Передаем phone при создании клиента, чтобы избежать интерактивного запроса в Docker
+client = TelegramClient(
+    SESSION_PATH,
+    api_id,
+    api_hash,
+    connection_retries=5,
+    phone=phone_number  # Добавляем phone, чтобы избежать input() в Docker
+)
 
 # === CONSTANTS ===
 MUTE_UNTIL_FOREVER = 2**31 - 1
@@ -404,7 +411,7 @@ async def is_advertisement(text: str) -> bool:
             logging.warning("Текст пуст после очистки, скип")
             return False
         resp = openai_client.chat.completions.create(
-            model="deepseek-chat",
+            model="deepseek-reasoner",
             messages=[
                 {"role": "system", "content": CONFIG['system_prompt']},
                 {
@@ -413,7 +420,7 @@ async def is_advertisement(text: str) -> bool:
                 }
             ],
             max_tokens=10,
-            temperature=0
+            temperature=1
         )
         result = resp.choices[0].message.content.strip().lower()
         logging.info(f"Классификатор: {result}")

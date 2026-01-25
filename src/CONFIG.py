@@ -68,17 +68,36 @@ def _load_default_configs():
     # В Docker контейнере используем /data, иначе текущую директорию или ./data
     if os.path.exists('/data'):
         config_path = '/data/config.json'
+        example_path = '/data/config.json.example'
     elif os.path.exists('./data'):
         config_path = './data/config.json'
+        example_path = './data/config.json.example'
     else:
         config_path = './config.json'
+        example_path = './config.json.example'
     
+    # Если config.json отсутствует, пытаемся создать из примера
     if not os.path.exists(config_path):
-        raise RuntimeError(
-            f"Config file not found: {config_path}\n"
-            f"Please create this file with your default configuration.\n"
-            f"See config.json.example for template."
-        )
+        if os.path.exists(example_path):
+            try:
+                # Копируем пример в config.json
+                import shutil
+                shutil.copy2(example_path, config_path)
+                print(f"⚠️  Config file not found. Created {config_path} from {example_path}")
+                print(f"⚠️  Please edit {config_path} with your actual configuration!")
+            except Exception as e:
+                raise RuntimeError(
+                    f"Config file not found: {config_path}\n"
+                    f"Failed to create from example: {e}\n"
+                    f"Please create this file manually with your default configuration.\n"
+                    f"See {example_path} for template."
+                )
+        else:
+            raise RuntimeError(
+                f"Config file not found: {config_path}\n"
+                f"Example file also not found: {example_path}\n"
+                f"Please create {config_path} with your default configuration."
+            )
     
     try:
         with open(config_path, 'r', encoding='utf-8-sig') as f:  # utf-8-sig автоматически удаляет BOM
