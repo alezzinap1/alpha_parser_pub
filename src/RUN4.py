@@ -20,6 +20,7 @@ from typing import Dict, List, Tuple, Optional, Any, Set, Union
 from contextlib import contextmanager
 from datetime import datetime
 import warnings
+import sys
 warnings.filterwarnings("ignore", category=UserWarning, module="urllib3")
 
 # === PATH CONFIGURATION ===
@@ -964,8 +965,61 @@ async def main():
         await asyncio.sleep(base_sleep)
 
 if __name__ == "__main__":
-    # Используем start() с phone, чтобы избежать интерактивного input() в Docker
-    client.start(phone=phone_number)
+    # Callback для получения кода из SMS
+    def get_code():
+        """Получает код авторизации из переменной окружения или интерактивно."""
+        # Сначала проверяем переменную окружения
+        code = os.getenv("TELEGRAM_CODE")
+        if code:
+            logging.info("Using TELEGRAM_CODE from environment variable")
+            return code
+        
+        # Если переменной нет, пытаемся интерактивный ввод
+        # В Docker это будет работать только в интерактивном режиме (-it)
+        try:
+            print("\n📱 Please enter the code you received via SMS:")
+            return input('Code: ')
+        except EOFError:
+            # Если нет интерактивного ввода, просим установить переменную
+            print("\n❌ ERROR: Cannot read code interactively in non-interactive mode.")
+            print("\nTo authorize for the first time, run container in interactive mode:")
+            print("  docker-compose down alpha-parser")
+            print("  docker-compose run --rm alpha-parser")
+            print("\nOr set TELEGRAM_CODE environment variable temporarily:")
+            print("  export TELEGRAM_CODE='your_code'")
+            print("  docker-compose up -d alpha-parser")
+            sys.exit(1)
+    
+    # Callback для получения пароля 2FA (если нужен)
+    def get_password_callback():
+        """Получает пароль 2FA из переменной окружения или интерактивно."""
+        # Сначала проверяем переменную окружения
+        pwd = os.getenv("TELEGRAM_PASSWORD")
+        if pwd:
+            logging.info("Using TELEGRAM_PASSWORD from environment variable")
+            return pwd
+        
+        # Если password уже задан в CONFIG (из .env), используем его
+        if password:
+            return password
+        
+        # Если переменной нет, пытаемся интерактивный ввод
+        try:
+            print("\n🔐 Please enter your 2FA password:")
+            return input('Password: ')
+        except EOFError:
+            print("\n❌ ERROR: Cannot read password interactively in non-interactive mode.")
+            print("Set TELEGRAM_PASSWORD environment variable or run in interactive mode.")
+            sys.exit(1)
+    
+    # Запускаем клиент с callback'ами для кода и пароля
+    # password передается как callback, если он не задан заранее
+    client.start(
+        phone=phone_number,
+        code_callback=get_code,
+        password=password if password else get_password_callback
+    )
+    
     try:
         client.loop.run_until_complete(main())
     finally:
