@@ -22,7 +22,9 @@ alpha-parser/
 ├── switch_to_production.sh        # Скрипт переключения на продакшн (Linux/Mac)
 ├── requirements.txt               # Зависимости Python
 ├── Dockerfile                     # Docker образ
+├── docker-compose.yml             # Docker Compose конфигурация
 ├── entrypoint.sh                  # Скрипт запуска в Docker
+├── DEPLOYMENT_GUIDE.md            # Полный гайд по развертыванию на сервере
 ├── ACCOUNT_SWITCHING_GUIDE.md     # Подробный гайд по переключению аккаунтов
 ├── CREATE_ENV_FILES.md            # Инструкция по созданию .env файлов
 └── README.md                      # Документация
@@ -115,17 +117,56 @@ grep ENV_MODE .env
 
 ## Запуск в Docker
 
-### Сборка образа
+### 🚀 Рекомендуемый способ: Docker Compose
+
+Проект включает `docker-compose.yml` для удобного управления контейнерами и автоматического доступа к файлам.
+
+**📖 Полный гайд по развертыванию:** [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)
+
+#### Быстрый старт:
+
 ```bash
-docker build -t alpha-parser:latest .
+# 1. Создайте директорию и файл .env
+mkdir -p /opt/alpha-parser/data
+nano /opt/alpha-parser/data/.env  # Заполните все переменные
+
+# 2. Запустите через Docker Compose
+cd /opt/alpha-parser
+docker compose up -d
+
+# 3. Проверьте логи
+docker compose logs -f alpha-parser
 ```
 
-### Первый запуск
+#### Доступ к файлам (логи и БД):
+
+Файл-сервер автоматически запускается на порту **8080**:
+
+- **Через браузер:** `http://your-server-ip:8080/`
+- **Через curl:** `curl http://your-server-ip:8080/channels_v2.db -o backup.db`
+
+#### Управление:
+
 ```bash
+docker compose ps              # статус
+docker compose logs -f         # логи всех сервисов
+docker compose restart         # перезапуск
+docker compose down            # остановка
+docker compose up -d           # запуск
+```
+
+### Альтернативный способ: Docker run
+
+Если не используете Docker Compose:
+
+```bash
+docker build -t alpha-parser:latest .
+
 docker run -d \
   --name alpha-parser \
   --restart unless-stopped \
   -v /opt/alpha-parser/data:/data \
+  --env-file /opt/alpha-parser/data/.env \
   alpha-parser:latest
 ```
 
@@ -134,35 +175,6 @@ docker run -d \
 - `channels_v2.db` (или `channels_v2_test.db` для теста)
 - `userbot2_session.session` (или `userbot2_test_session.session` для теста)
 - `userbot2.log` (или `userbot2_test.log` для теста)
-
-### Переменные окружения для Docker
-
-При запуске в Docker передайте переменные окружения:
-
-```bash
-docker run -d \
-  --name alpha-parser \
-  --restart unless-stopped \
-  -v /opt/alpha-parser/data:/data \
-  -e TELEGRAM_API_ID="your_api_id" \
-  -e TELEGRAM_API_HASH="your_api_hash" \
-  -e TELEGRAM_PHONE_NUMBER="+1234567890" \
-  -e DEEPSEEK_API_KEY="your_key" \
-  -e CSV_URL="your_google_sheets_url" \
-  -e ENV_MODE="production" \
-  -e DEFAULT_CONFIG_JSON='{"key":"value"}' \
-  alpha-parser:latest
-```
-
-Или используйте `.env` файл в `/opt/alpha-parser/data/.env`
-
-### Управление контейнером
-```bash
-docker logs -f alpha-parser      # логи
-docker restart alpha-parser      # перезапуск
-docker stop alpha-parser         # остановка
-docker start alpha-parser        # запуск
-```
 
 ## Особенности
 

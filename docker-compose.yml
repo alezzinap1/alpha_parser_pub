@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  # Основной бот
+  alpha-parser:
+    build: .
+    container_name: alpha-parser
+    restart: unless-stopped
+    volumes:
+      - /opt/alpha-parser/data:/data
+    env_file:
+      - /opt/alpha-parser/data/.env
+    environment:
+      - ENV_MODE=production
+    networks:
+      - alpha-network
+    depends_on:
+      - file-server
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Файл-сервер для доступа к данным (логи, БД)
+  file-server:
+    image: python:3.12-slim
+    container_name: alpha-parser-files
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - /opt/alpha-parser/data:/data:ro  # read-only доступ
+    command: >
+      sh -c "cd /data && 
+             python3 -m http.server 8080"
+    networks:
+      - alpha-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  alpha-network:
+    driver: bridge
+
