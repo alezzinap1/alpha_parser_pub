@@ -12,6 +12,12 @@ env/
 .env
 .env.*
 
+# Config JSON files (содержат секреты)
+config.json
+data/config.json
+/config.json
+/data/config.json
+
 # Documentation with secrets - НИКОГДА не коммитить!
 ACCOUNT_SWITCHING_GUIDE.md
 CREATE_ENV_FILES.md

@@ -57,9 +57,37 @@ csv_url = _require_env("CSV_URL")
 """
 
 # === DEFAULT CONFIGS ===
-# Полностью загружаем базовые настройки из переменной окружения,
-# чтобы значения (каналы, интервалы, промпты и т.д.) не светились в репозитории.
-# Ожидается JSON-строка с полным словарём настроек.
-DEFAULT_CONFIGS = json.loads(_require_env("DEFAULT_CONFIG_JSON"))
+# Загружаем базовые настройки из JSON файла (не из переменной окружения)
+# Файл должен находиться в той же директории, что и .env файл
+# Для Docker: /data/config.json
+# Для локальной разработки: ./config.json или ./data/config.json
+
+def _load_default_configs():
+    """Загружает DEFAULT_CONFIGS из JSON файла."""
+    # Определяем путь к файлу конфигурации
+    # В Docker контейнере используем /data, иначе текущую директорию или ./data
+    if os.path.exists('/data'):
+        config_path = '/data/config.json'
+    elif os.path.exists('./data'):
+        config_path = './data/config.json'
+    else:
+        config_path = './config.json'
+    
+    if not os.path.exists(config_path):
+        raise RuntimeError(
+            f"Config file not found: {config_path}\n"
+            f"Please create this file with your default configuration.\n"
+            f"See config.json.example for template."
+        )
+    
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except json.JSONDecodeError as e:
+        raise RuntimeError(f"Invalid JSON in {config_path}: {e}")
+    except Exception as e:
+        raise RuntimeError(f"Failed to load config from {config_path}: {e}")
+
+DEFAULT_CONFIGS = _load_default_configs()
 
 ########################################################################################

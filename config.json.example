@@ -1,0 +1,28 @@
+{
+  "target_channel": "@your_channel",
+  "table_scan_interval": 120,
+  "message_scan_interval": 200,
+  "min_length": 95,
+  "min_length_wl": 95,
+  "blacklist_words": ["addlist"],
+  "max_messages_per_channel": 3,
+  "channel_type_intervals": {
+    "filtered": 1200,
+    "whitelist": 300,
+    "stats": 120,
+    "longcheck": 28800,
+    "ranks": 600,
+    "whitelist2": 300,
+    "type2": 3600
+  },
+  "btc_eth_threshold": 1000000,
+  "other_coin_threshold": 500000,
+  "csv_timeout": 30,
+  "sleep_between_channels_min": 0.2,
+  "sleep_between_channels_max": 0.35,
+  "max_null_hash_fixes": 5,
+  "log_channel_count_changes_only": true,
+  "system_prompt": "текст",
+  "user_prompt": "текст"
+}
+
