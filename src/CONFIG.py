@@ -81,7 +81,7 @@ def _load_default_configs():
         )
     
     try:
-        with open(config_path, 'r', encoding='utf-8') as f:
+        with open(config_path, 'r', encoding='utf-8-sig') as f:  # utf-8-sig автоматически удаляет BOM
             return json.load(f)
     except json.JSONDecodeError as e:
         raise RuntimeError(f"Invalid JSON in {config_path}: {e}")
