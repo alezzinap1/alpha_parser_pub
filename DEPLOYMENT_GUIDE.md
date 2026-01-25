@@ -44,7 +44,7 @@ sudo apt update && sudo apt upgrade -y
 ### 3. Создайте директорию для проекта
 
 ```bash
-sudo mkdir -p /opt/alpha-parser/data
+sudo mkdir -p /opt/alpha-parser/app/data
 sudo chown -R $USER:$USER /opt/alpha-parser
 ```
 
@@ -119,10 +119,10 @@ ls -la
 
 ## ⚙️ Создание файла конфигурации
 
-### 1. Создайте файл `.env` в `/opt/alpha-parser/data/.env`
+### 1. Создайте файл `.env` в `/opt/alpha-parser/app/data/.env`
 
 ```bash
-nano /opt/alpha-parser/data/.env
+nano /opt/alpha-parser/app/data/.env
 ```
 
 ### 2. Заполните все необходимые переменные:
@@ -161,7 +161,7 @@ DEFAULT_CONFIG_JSON={"target_channel":"@your_channel","system_prompt":"...","use
 ### 4. Установите правильные права доступа
 
 ```bash
-chmod 600 /opt/alpha-parser/data/.env
+chmod 600 /opt/alpha-parser/app/data/.env
 ```
 
 ⚠️ **ВАЖНО:** Файл `.env` содержит секретные данные! Никогда не коммитьте его в git!
@@ -220,7 +220,7 @@ docker compose logs -f
 
 ### Вариант 1: Через HTTP файл-сервер (рекомендуется)
 
-Файл-сервер автоматически запускается на порту **8080** и предоставляет доступ ко всем файлам в `/opt/alpha-parser/data`.
+Файл-сервер автоматически запускается на порту **8080** и предоставляет доступ ко всем файлам в `/opt/alpha-parser/app/data`.
 
 #### Скачивание через браузер:
 
@@ -260,16 +260,16 @@ curl http://your-server-ip:8080/channels_v2.db -o channels_v2_backup.db
 
 ```bash
 # На сервере
-cd /opt/alpha-parser/data
+cd /opt/alpha-parser/app/data
 ls -la
 
 # Скачать через SCP (с локального компьютера)
-scp user@server:/opt/alpha-parser/data/channels_v2.db ./channels_v2_backup.db
-scp user@server:/opt/alpha-parser/data/userbot2.log ./userbot2_backup.log
+scp user@server:/opt/alpha-parser/app/data/channels_v2.db ./channels_v2_backup.db
+scp user@server:/opt/alpha-parser/app/data/userbot2.log ./userbot2_backup.log
 
 # ⚠️ СЕКРЕТНЫЕ ФАЙЛЫ - используйте только при необходимости и с осторожностью:
-# scp user@server:/opt/alpha-parser/data/.env ./backup.env  # Только для бэкапа!
-# scp user@server:/opt/alpha-parser/data/userbot2_session.session ./backup.session  # Только для бэкапа!
+# scp user@server:/opt/alpha-parser/app/data/.env ./backup.env  # Только для бэкапа!
+# scp user@server:/opt/alpha-parser/app/data/userbot2_session.session ./backup.session  # Только для бэкапа!
 ```
 
 ### Вариант 3: Через Docker exec
@@ -338,7 +338,7 @@ docker compose restart alpha-parser
 docker compose down
 ```
 
-⚠️ **ВНИМАНИЕ:** Это остановит контейнеры, но **НЕ удалит** данные в `/opt/alpha-parser/data`!
+⚠️ **ВНИМАНИЕ:** Это остановит контейнеры, но **НЕ удалит** данные в `/opt/alpha-parser/app/data`!
 
 ### Полная очистка (удаление контейнеров и образов)
 
@@ -346,7 +346,7 @@ docker compose down
 docker compose down --rmi all
 ```
 
-⚠️ **ВНИМАНИЕ:** Это удалит Docker образы, но **НЕ удалит** данные в `/opt/alpha-parser/data`!
+⚠️ **ВНИМАНИЕ:** Это удалит Docker образы, но **НЕ удалит** данные в `/opt/alpha-parser/app/data`!
 
 ---
 
@@ -402,17 +402,17 @@ docker compose logs alpha-parser
 docker compose ps
 
 # Проверьте файл .env
-cat /opt/alpha-parser/data/.env
+cat /opt/alpha-parser/app/data/.env
 
 # Проверьте права доступа
-ls -la /opt/alpha-parser/data
+ls -la /opt/alpha-parser/app/data
 ```
 
 ### Проблема: "Environment variable X must be set"
 
 **Решение:**
-- Проверьте, что файл `.env` существует: `ls -la /opt/alpha-parser/data/.env`
-- Проверьте содержимое: `cat /opt/alpha-parser/data/.env`
+- Проверьте, что файл `.env` существует: `ls -la /opt/alpha-parser/app/data/.env`
+- Проверьте содержимое: `cat /opt/alpha-parser/app/data/.env`
 - Убедитесь, что все переменные заполнены
 - Проверьте, что `DEFAULT_CONFIG_JSON` - валидный JSON
 
@@ -446,10 +446,10 @@ docker compose restart file-server
 ### Проблема: База данных не создается
 
 **Решение:**
-- Проверьте права доступа к `/opt/alpha-parser/data`:
+- Проверьте права доступа к `/opt/alpha-parser/app/data`:
   ```bash
-  sudo chown -R $USER:$USER /opt/alpha-parser/data
-  sudo chmod -R 755 /opt/alpha-parser/data
+  sudo chown -R $USER:$USER /opt/alpha-parser/app/data
+  sudo chmod -R 755 /opt/alpha-parser/app/data
   ```
 - Проверьте логи: `docker compose logs alpha-parser`
 
@@ -459,7 +459,7 @@ docker compose restart file-server
 - Проверьте правильность `TELEGRAM_API_ID` и `TELEGRAM_API_HASH`
 - Проверьте правильность `TELEGRAM_PHONE_NUMBER`
 - Проверьте логи: `docker compose logs -f alpha-parser`
-- Убедитесь, что сессия создана: `ls -la /opt/alpha-parser/data/*.session`
+- Убедитесь, что сессия создана: `ls -la /opt/alpha-parser/app/data/*.session`
 
 ### Проблема: Контейнер постоянно перезапускается
 
@@ -487,7 +487,7 @@ docker compose run --rm alpha-parser
 
 2. **Защитите файл `.env`:**
    ```bash
-   chmod 600 /opt/alpha-parser/data/.env
+   chmod 600 /opt/alpha-parser/app/data/.env
    ```
 
 3. **Регулярно делайте бэкапы:**
@@ -495,7 +495,7 @@ docker compose run --rm alpha-parser
    # Создайте скрипт бэкапа
    #!/bin/bash
    DATE=$(date +%Y%m%d_%H%M%S)
-   tar -czf /opt/alpha-parser/backups/backup_$DATE.tar.gz -C /opt/alpha-parser/data channels_v2.db userbot2.log
+   tar -czf /opt/alpha-parser/backups/backup_$DATE.tar.gz -C /opt/alpha-parser/app/data channels_v2.db userbot2.log
    # ⚠️ СЕКРЕТНЫЕ ФАЙЛЫ (.env, *.session) НЕ включаются в автоматический бэкап через скрипт
    # Если нужен полный бэкап с секретами - делайте вручную с осторожностью
    ```
@@ -519,17 +519,17 @@ docker stats
 
 # Использование диска
 df -h
-du -sh /opt/alpha-parser/data
+du -sh /opt/alpha-parser/app/data
 ```
 
 ### Проверка размера БД
 
 ```bash
 # На сервере
-ls -lh /opt/alpha-parser/data/channels_v2.db
+ls -lh /opt/alpha-parser/app/data/channels_v2.db
 
 # Или через SQLite
-sqlite3 /opt/alpha-parser/data/channels_v2.db "SELECT COUNT(*) FROM posts;"
+sqlite3 /opt/alpha-parser/app/data/channels_v2.db "SELECT COUNT(*) FROM posts;"
 ```
 
 ---
@@ -564,7 +564,7 @@ docker exec alpha-parser python -m src.RUN4 --help
 
 1. Проверьте логи: `docker compose logs -f`
 2. Проверьте статус: `docker compose ps`
-3. Проверьте конфигурацию: `cat /opt/alpha-parser/data/.env`
+3. Проверьте конфигурацию: `cat /opt/alpha-parser/app/data/.env`
 4. Обратитесь к документации в `README.md`
 
 ---

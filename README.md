@@ -168,12 +168,12 @@ docker build -t alpha-parser:latest .
 docker run -d \
   --name alpha-parser \
   --restart unless-stopped \
-  -v /opt/alpha-parser/data:/data \
-  --env-file /opt/alpha-parser/data/.env \
+  -v /opt/alpha-parser/app/data:/data \
+  --env-file /opt/alpha-parser/app/data/.env \
   alpha-parser:latest
 ```
 
-Где `/opt/alpha-parser/data` – директория на хосте, где будут храниться:
+Где `/opt/alpha-parser/app/data` – директория на хосте, где будут храниться:
 - `channels_v2.db` (или `channels_v2_test.db` для теста) - база данных
 - `userbot2.log` (или `userbot2_test.log` для теста) - логи
 

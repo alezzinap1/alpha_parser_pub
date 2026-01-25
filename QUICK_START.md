@@ -14,7 +14,7 @@
 
 ```bash
 # Создайте директорию
-sudo mkdir -p /opt/alpha-parser/data
+sudo mkdir -p /opt/alpha-parser/app/data
 sudo chown -R $USER:$USER /opt/alpha-parser
 ```
 
@@ -28,7 +28,7 @@ git clone https://github.com/alezzinap1/alpha_parser_pub.git .
 ### 3. Создание конфигурации
 
 ```bash
-nano /opt/alpha-parser/data/.env
+nano /opt/alpha-parser/app/data/.env
 ```
 
 Заполните файл (см. пример в `CREATE_ENV_FILES.md`):
