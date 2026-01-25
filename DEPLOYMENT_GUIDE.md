@@ -225,11 +225,11 @@ docker compose logs -f
 #### Скачивание через браузер:
 
 1. Откройте в браузере: `http://your-server-ip:8080/`
-2. Вы увидите список всех файлов:
+2. Вы увидите список файлов:
    - `channels_v2.db` - база данных
    - `userbot2.log` - логи
-   - `userbot2_session.session` - сессия Telegram
-   - `.env` - конфигурация (⚠️ не скачивайте через браузер!)
+
+⚠️ **ВАЖНО:** Файлы `.env` и `userbot2_session.session` являются секретными и **НЕ должны** быть доступны через файл-сервер. Они не отображаются в списке для безопасности.
 
 3. Кликните на нужный файл для скачивания
 
@@ -266,6 +266,10 @@ ls -la
 # Скачать через SCP (с локального компьютера)
 scp user@server:/opt/alpha-parser/data/channels_v2.db ./channels_v2_backup.db
 scp user@server:/opt/alpha-parser/data/userbot2.log ./userbot2_backup.log
+
+# ⚠️ СЕКРЕТНЫЕ ФАЙЛЫ - используйте только при необходимости и с осторожностью:
+# scp user@server:/opt/alpha-parser/data/.env ./backup.env  # Только для бэкапа!
+# scp user@server:/opt/alpha-parser/data/userbot2_session.session ./backup.session  # Только для бэкапа!
 ```
 
 ### Вариант 3: Через Docker exec
@@ -491,7 +495,9 @@ docker compose run --rm alpha-parser
    # Создайте скрипт бэкапа
    #!/bin/bash
    DATE=$(date +%Y%m%d_%H%M%S)
-   tar -czf /opt/alpha-parser/backups/backup_$DATE.tar.gz -C /opt/alpha-parser/data channels_v2.db userbot2.log userbot2_session.session
+   tar -czf /opt/alpha-parser/backups/backup_$DATE.tar.gz -C /opt/alpha-parser/data channels_v2.db userbot2.log
+   # ⚠️ СЕКРЕТНЫЕ ФАЙЛЫ (.env, *.session) НЕ включаются в автоматический бэкап через скрипт
+   # Если нужен полный бэкап с секретами - делайте вручную с осторожностью
    ```
 
 4. **Настройте автоматические бэкапы через cron:**

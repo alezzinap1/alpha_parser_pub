@@ -33,14 +33,16 @@ alpha-parser/
 ### Файлы данных (создаются автоматически)
 
 **Тестовый режим (`ENV_MODE=test`):**
-- `userbot2_test_session.session` - сессия Telegram
 - `channels_v2_test.db` - база данных каналов и постов
 - `userbot2_test.log` - логи
 
 **Продакшн режим (`ENV_MODE=production`):**
-- `userbot2_session.session` - сессия Telegram
 - `channels_v2.db` - база данных каналов и постов
 - `userbot2.log` - логи
+
+⚠️ **Секретные файлы** (не доступны через файл-сервер, только через SSH):
+- `.env`, `.env.test`, `.env.production` - конфигурация
+- `userbot2_session.session`, `userbot2_test_session.session` - сессии Telegram
 
 ⚠️ **Важно:** Все `.env.*` файлы, сессии, базы данных и логи находятся в `.gitignore` и не коммитятся в git!
 
@@ -172,10 +174,12 @@ docker run -d \
 ```
 
 Где `/opt/alpha-parser/data` – директория на хосте, где будут храниться:
-- `.env` (конфигурация через переменные окружения)
-- `channels_v2.db` (или `channels_v2_test.db` для теста)
-- `userbot2_session.session` (или `userbot2_test_session.session` для теста)
-- `userbot2.log` (или `userbot2_test.log` для теста)
+- `channels_v2.db` (или `channels_v2_test.db` для теста) - база данных
+- `userbot2.log` (или `userbot2_test.log` для теста) - логи
+
+⚠️ **Секретные файлы** (не доступны через файл-сервер):
+- `.env` - конфигурация через переменные окружения
+- `userbot2_session.session` (или `userbot2_test_session.session` для теста) - сессия Telegram
 
 ## Особенности
 
