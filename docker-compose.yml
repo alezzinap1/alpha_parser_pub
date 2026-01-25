@@ -7,9 +7,9 @@ services:
     container_name: alpha-parser
     restart: unless-stopped
     volumes:
-      - /opt/alpha-parser/data:/data
+      - /opt/alpha-parser/app/data:/data
     env_file:
-      - /opt/alpha-parser/data/.env
+      - /opt/alpha-parser/app/data/.env
     environment:
       - ENV_MODE=production
     networks:
@@ -30,7 +30,7 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - /opt/alpha-parser/data:/data:ro  # read-only доступ
+      - /opt/alpha-parser/app/data:/data:ro  # read-only доступ
     command: >
       sh -c "cd /data && 
              python3 -m http.server 8080"
